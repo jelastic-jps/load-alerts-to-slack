@@ -191,8 +191,8 @@ onInstall:
               }];
 
               var resp = toNative(new Transport().post("https://slack.com/api/chat.postMessage", {
-                  token: "${settings.token}",
-                  channel: "${settings.channel}",
+                  token: '<%="$"%>{settings.token}',
+                  channel: '<%="$"%>{settings.channel}',
                   attachments: toJSON(attachments)
               }, {}));
               if (!resp.ok) return { type: "error", message: resp.error || "unknown error", data: resp };
