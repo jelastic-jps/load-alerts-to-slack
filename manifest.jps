@@ -1,6 +1,5 @@
 type: install
 name: Load Alerts to Slack
-id: loadalerts-to-slack
 
 settings:
   fields:
@@ -114,6 +113,7 @@ onInstall:
         type: update
         targetNodes: any
         name: Load Alerts to Slack
+        id: loadalerts-to-slack
         description: Sends monitoring alerts to Slack messenger
 
         settings:
@@ -201,7 +201,7 @@ onInstall:
         <% return { result: 0, body: ___ViewO.join('') }; %>
   - install:
       envName: ${settings.envName}
-      nodeGroup: bl
+      nodeGroup: ${settings.nodeGroup}
       settings:
         token: ${settings.token}
         channel: ${settings.channel}
