@@ -1,0 +1,208 @@
+type: install
+name: Load Alerts to Slack
+id: loadalerts-to-slack
+
+settings:
+  fields:
+    - type: list
+      name: envName
+      caption: Environment
+      required: true
+      values: []
+
+    - type: list
+      name: nodeGroup
+      caption: Attach To
+      required: true
+      dependsOn:
+        envName: {}
+
+    - type: radiolist
+      caption: Mode
+      name: mode
+      columns: 3
+      value: specificAlerts
+      values:
+        - caption: Specific Alerts
+          value: specificAlerts
+        - caption: All Alerts
+          value: allAlerts
+      showIf:
+        specificAlerts:
+          - type: list
+            name: alerts
+            caption: Load Alert(s)
+            required: true
+            multiSelect: true
+            dependsOn:
+              envName: {}
+
+    - type: string
+      caption: Slack Channel's ID
+      name: channel
+      required: true      
+      placeholder: ID of the channel you want to send the message to
+
+    - type: string
+      caption: Slack OAuth Token
+      name: token
+      required: true
+      placeholder: xxxx-your-token-here      
+      tooltip: Need a token? <a href="https://api.slack.com/apps" target="_blank">Create and install</a> a <a href="https://api.slack.com/start" target="_blank">Slack app</a> to begin.
+
+onBeforeInit: |
+  var resp = api.env.control.GetEnvs();
+  if (resp.result !== 0) return resp;
+  var envInfos = resp.infos, envs = [], alertItems = {}, nodes = {};
+
+  for (var i = 0, envInfo, env; envInfo = envInfos[i]; i++) {
+      env = envInfo.env;
+
+      if (env.status == 1) {
+          for (var j = 0, node; node = envInfo.nodes[j]; j++) {
+            nodes[env.envName] = nodes[env.envName] || [];
+            nodes[env.envName].groups = nodes[env.envName].groups || {};
+
+            if (!nodes[env.envName].groups[node.nodeGroup])
+              nodes[env.envName].push({
+                value: node.nodeGroup,
+                caption: (node.displayName || node.name) + ' (' + node.nodeGroup + ')'
+              });
+
+            nodes[env.envName].groups[node.nodeGroup] = true;
+          }
+
+          resp = api.env.trigger.GetTriggers({ envName: env.envName });
+          if (resp.result != 0) return resp;
+          var alerts = resp.array;
+
+          for (var j = 0, alert; alert = alerts[j]; j++) {
+              alertItems[env.envName] = alertItems[env.envName] || [];
+
+              alertItems[env.envName].push({
+                  value: alert.name + "#" + alert.nodeGroup,
+                  caption: alert.name + ' (' + alert.nodeGroup + ')'
+              });
+          }
+
+          if (alertItems[env.envName] && alertItems[env.envName].length > 0) {
+              envs.push({
+                  value: env.envName,
+                  caption: (env.displayName || env.envName)
+              });
+          }
+      }
+  }
+
+  if (envs.length > 0) {
+      jps.settings.fields[0].values = envs;
+      jps.settings.fields[0].value = envs[0].value;
+      jps.settings.fields[1].dependsOn.envName = nodes;
+      jps.settings.fields[2].showIf.specificAlerts[0].dependsOn.envName = alertItems;
+  }
+
+  return { result: 0, settings: jps.settings };
+
+onInstall:
+  - if ('${settings.mode}' == 'specificAlerts'):
+      set: { alerts: '${settings.alerts}' }
+  - script:
+      type: ejs
+      params:
+        alerts: ${this.alerts:}
+      body: |
+        type: update
+        targetNodes: any
+        name: Load Alerts to Slack
+        description: Sends monitoring alerts to Slack messenger
+
+        settings:
+          fields:
+          - type: string
+            caption: Slack Channel's ID
+            name: channel
+            required: true
+            placeholder: ID of the channel you want to send the message to
+
+          - type: string
+            caption: Slack OAuth Token
+            name: token
+            required: true
+            placeholder: xxxx-your-token-here
+            tooltip: Need a token? <a href="https://api.slack.com/apps" target="_blank">Create and install</a> a <a href="https://api.slack.com/start" target="_blank">Slack app</a> to begin.
+
+        buttons:
+          - caption: Configure
+            settings: main
+            action: configure
+
+          - caption: Send Test Message
+            confirmText: Send test message?
+            loadingText: Sending test message...
+            action: sendTestMessage
+
+        <% alerts = alerts ? alerts.split(/\s*,\s*/) : [] %>
+
+        <% if (alerts.length == 0) { %>
+        onAlert:
+          sendSlackMessage:
+            name: '<%="$"%>{event.params.NAME}'
+            nodeGroup: '<%="$"%>{event.params.nodeGroup}'
+        <%}%>
+
+        <% for (var i = 0, n = alerts.length; i < n; i++) { var data = alerts[i].split('#'); %>
+        onAlert [name:<%=data[0]%>, nodeGroup:<%=data[1]%>]:
+          sendSlackMessage:
+            name: '<%="$"%>{event.params.NAME}'
+            nodeGroup: '<%="$"%>{event.params.nodeGroup}'
+        <%}%>
+
+        actions:
+          configure:
+            log: successfuly configured!
+
+          sendTestMessage:
+            sendSlackMessage:
+              name: Test Alert
+              nodeGroup: Test Node Group
+
+          sendSlackMessage:
+            script: |
+              import com.hivext.api.core.utils.Transport;
+
+              var attachments = [{
+                  fallback: "Monitoring Alert: ${env.name} ${this.name} ${this.nodeGroup}",
+                  color: "#fe4141",
+                  pretext: "https://" + window.location.host.replace(/^(cs.|appstore.)/, "app.") + "/",
+                  author_name: "Monitoring Alert",
+                  title: "${env.name}",
+                  title_link: "${env.url}",
+                  text: " ",
+                  fields: [{
+                      "title": "Alert Name",
+                      "value": "${this.name}",
+                      "short": false
+                  }, {
+                      "title": "Node Group",
+                      "value": "${this.nodeGroup}",
+                      "short": false
+                  }],
+                  ts: new Date().getTime()
+              }];
+
+              var resp = toNative(new Transport().post("https://slack.com/api/chat.postMessage", {
+                  token: "${settings.token}",
+                  channel: "${settings.channel}",
+                  attachments: toJSON(attachments)
+              }, {}));
+              if (!resp.ok) return { type: "error", message: "unknown error", data: resp };
+
+              return { result: 0 };
+        <% return { result: 0, body: ___ViewO.join('') }; %>
+  - install:
+      envName: ${settings.envName}
+      nodeGroup: bl
+      settings:
+        token: ${settings.token}
+        channel: ${settings.channel}
+      manifest: ${response.body}
