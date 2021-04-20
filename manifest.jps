@@ -195,7 +195,7 @@ onInstall:
                   channel: "${settings.channel}",
                   attachments: toJSON(attachments)
               }, {}));
-              if (!resp.ok) return { type: "error", message: "unknown error", data: resp };
+              if (!resp.ok) return { type: "error", message: resp.error || "unknown error", data: resp };
 
               return { result: 0 };
         <% return { result: 0, body: ___ViewO.join('') }; %>
