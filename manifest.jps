@@ -152,9 +152,10 @@ onInstall:
 
         <% for (var i = 0, n = alerts.length; i < n; i++) { var data = alerts[i].split('#'); %>
         onAlert [name:<%=data[0]%>, nodeGroup:<%=data[1]%>]:
-          sendSlackMessage:
-            name: '<%="$"%>{event.params.NAME}'
-            nodeGroup: '<%="$"%>{event.params.nodeGroup}'
+          if ('<%="$"%>{event.params.nodeGroup}' == '<%=data[1]%>'):
+            sendSlackMessage:
+              name: '<%="$"%>{event.params.NAME}'
+              nodeGroup: '<%="$"%>{event.params.nodeGroup}'
         <%}%>
 
         actions:
