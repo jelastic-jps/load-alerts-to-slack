@@ -1,6 +1,6 @@
 <img src="images/slack-notification-logo.png" width="70"/>
 
-# Application Load Alert Notification Add-on for Slack
+# Application Load Alert Notification Add-on for Slack (BETA)
 
 Get automated alerts in Slack for a certain service isn’t working or resource limits are about to be exceeded when:  
 
