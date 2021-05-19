@@ -1,5 +1,5 @@
 type: install
-name: Load Alerts to Slack
+name: Load Alerts to Slack (BETA)
 description: 
   text: Automated alerts in Slack for a certain service isn’t working or resource limits are about to be exceeded
   short: Slack integration with Jelastic alert system
