@@ -6,6 +6,7 @@ description:
   text: Automated alerts in Slack for a certain service isn’t working or resource limits are about to be exceeded
   short: Slack integration with Jelastic alert system
 logo: https://raw.githubusercontent.com/jelastic-jps/load-alerts-to-slack/main/images/slack-notification-logo.png
+homepage: https://github.com/jelastic-jps/load-alerts-to-slack
 categories:
   - apps/dev-and-admin-tools
   
